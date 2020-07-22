@@ -6,8 +6,9 @@ const mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/userDB', { useNewUrlParser: true, useUnifiedTopology: true });
 
 // var encrypt = require('mongoose-encryption');   //low security then hasing
-var md5 = require('md5');  //more secure , bcoz you can't never convert a hash function to a nrmal password ..!
-
+// var md5 = require('md5');  //more secure than mongoose-encryption, but less secure than bcrypt ..!
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 
@@ -41,38 +42,44 @@ app.get('/register', function (req, res) {
 });
 
 app.post("/register", function (req, res) {
-    const newUser = User({
-        email: req.body.username,
-        password: md5(req.body.password),
-    });
 
-    User.find({ email: req.body.username }, function (err, foundedUser) {
-        if (foundedUser.length > 0) {
-            console.log("user alreay exits");
-        } else {
-            newUser.save(function (err) {
-                if (!err) {
-                    res.render("secrets");
-                } else {
-                    console.log(err);
-                }
-            });
-        }
+    bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+        const newUser = User({
+            email: req.body.username,
+            password: hash,
+        });
+
+        User.find({ email: req.body.username }, function (err, foundedUser) {
+            if (foundedUser.length > 0) {
+                console.log("user alreay exits");
+            } else {
+                newUser.save(function (err) {
+                    if (!err) {
+                        res.render("secrets");
+                    } else {
+                        console.log(err);
+                    }
+                });
+            }
+        });
     });
 });
 
 app.post('/login', function (req, res) {
     const email = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     User.find({ email: email }, function (err, foundUser) {
-        if (!err) {
-            if (foundUser.length > 0) {
-                if (foundUser[0].password === password) {
-                    res.render("secrets");
-                } else {
-                    console.log("password mismatch");
-                }
+        if (!err) {                                                                          // check if no error
+            if (foundUser.length > 0) {                                                     // check if user has a account   
+                bcrypt.compare(password, foundUser[0].password, function (err, result) {
+                    console.log(result);      // make user enter password in hash with salting 
+                    if (result === true) {                                                // if save password == user currently enter password both hash match
+                        res.render("secrets");                                           // then proceed forward
+                    } else {
+                        console.log("password mismatch");
+                    }
+                });
             } else {
                 console.log("user not found");
             }
