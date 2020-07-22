@@ -2,9 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
-var encrypt = require('mongoose-encryption');
 const mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/userDB', { useNewUrlParser: true, useUnifiedTopology: true });
+
+// var encrypt = require('mongoose-encryption');   //low security then hasing
+var md5 = require('md5');  //more secure , bcoz you can't never convert a hash function to a nrmal password ..!
+
 
 const app = express();
 
@@ -20,8 +23,8 @@ const userScheme = mongoose.Schema({
     password: String,
 });
 
-const secret = "ThisIsAScretForMyDatabaseUsers";
-userScheme.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
+
+// userScheme.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
 
 const User = mongoose.model("User", userScheme);
 
@@ -40,7 +43,7 @@ app.get('/register', function (req, res) {
 app.post("/register", function (req, res) {
     const newUser = User({
         email: req.body.username,
-        password: req.body.password,
+        password: md5(req.body.password),
     });
 
     User.find({ email: req.body.username }, function (err, foundedUser) {
@@ -60,7 +63,7 @@ app.post("/register", function (req, res) {
 
 app.post('/login', function (req, res) {
     const email = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);
 
     User.find({ email: email }, function (err, foundUser) {
         if (!err) {
